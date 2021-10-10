@@ -1,0 +1,644 @@
+---
+title: "Initial Exploratory Analysis"
+author: "Ian Scarff"
+date: "September 9, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Prep Data
+
+Load in data.
+
+```{r}
+FB <- read.csv("FacebookData.csv")
+```
+
+Use the *lubridate* package to set the **posted_at** as a date and time variable and to create a **year** variable.
+
+```{r, message=FALSE,error=FALSE, warning=FALSE}
+### Load package
+library(lubridate)
+
+### Set variable as date-time
+FB$posted_at <- ymd_hms(FB$posted_at)
+
+### Create a year variable and add it to the FB data
+FB[23] <- year(FB$posted_at)
+colnames(FB)[23] <- "year"
+
+```
+
+
+```{r}
+min(FB$posted_at)
+max(FB$posted_at)
+```
+
+The data extends from the beginning of 2012 to just before Election Day in 2016
+
+```{r}
+levels(FB$status_type)
+```
+
+The data comes from 15 separate news outlets.
+
+
+# Exploratory Analysis
+
+## Pie Charts
+
+Use the *plotly* package to make nice graphs and charts.
+
+```{r, message=FALSE,error=FALSE,warning=FALSE}
+library(plotly)
+```
+
+The pie chart below shows what percentage of the total data each news outlet comprises.
+
+```{r}
+plot_ly(data = FB, labels = ~Source, type = 'pie') %>%
+  layout(title = 'Data by News Source',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+```
+
+
+The pie chart below shows what percentage of the total data each year comprises.
+
+```{r}
+plot_ly(data = FB, labels = ~year, type = 'pie', textposition = 'inside',
+        textinfo = 'label+percent', text = ~paste('Year: ', year),
+        showlegend = F) %>%
+  layout(title = 'Data by Year',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+```
+
+
+## Bar Charts
+
+Create a vector of years for later use.
+
+```{r}
+years <- c(2012:2016)
+```
+
+The bar chart below shows the total number of stories for each new outlet, across each year.
+
+```{r}
+### Create a data frame to hold total story values
+TotStories <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotStories) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlet
+TotStories[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total stories and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab a random variable variables,
+      ### find out how many rows are in the subset, and add it to the data frame
+      TotStories[i,j+1] <- nrow(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                    select = c(shares_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total reactions to zero and add it to the data frame
+      TotStories[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot bar chart
+plot_ly(TotStories, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Stories'), barmode = 'group')
+
+```
+
+
+
+
+The bar chart below shows the total number of reactions (Likes + Love + Sad + Thankful + Angry) for each new outlet, across each year.
+
+```{r}
+
+### Create a data frame to hold total reaction values
+TotReact <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotReact) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlets
+TotReact[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total reactions and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab the reaction variables, sum them up,
+      ### and add it to the data frame
+      TotReact[i,j+1] <- sum(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                  select = 
+                          c(likes_count,love_count,wow_count,haha_count,sad_count,
+                                      thankful_count,
+                                      angry_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total reactions to zero and add it to the data frame
+      TotReact[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot the bar chart
+plot_ly(TotReact, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Reactions'), barmode = 'group')
+
+```
+
+
+The bar chart below shows the total number of comments for each new outlet, across each year.
+
+
+```{r}
+### Create a data frame to hold total comment values
+TotComm <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotComm) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlets
+TotComm[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total comments and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab the comment variable, sum it up,
+      ### and add it to the data frame
+      TotComm[i,j+1] <- sum(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                    select = c(comments_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total comments to zero and add it to the data frame
+      TotComm[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot the bar chart
+plot_ly(TotComm, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Comments'), barmode = 'group')
+```
+
+
+The bar chart below shows the total number of shares for each new outlet, across each year.
+
+```{r}
+### Create a data frame to hold total share values
+TotShare <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotShare) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlets
+TotShare[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total shares and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab the shares variable, sum it up,
+      ### and add it to the data frame
+      TotShare[i,j+1] <- sum(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                   select = c(shares_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total comments to zero and add it to the data frame
+      TotShare[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot the bar chart
+plot_ly(TotShare, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Shares'), barmode = 'group')
+```
+
+
+## Box Plots
+
+Since the data is highly right scewed, a log transformation was used.
+
+* **NOTE:** In statistics, whenever a log transformations is mentioned/used, it is **always** a *natural log* transformation, not log base 10.
+
+The box plot below shows the log transformation of likes for each news outlet.
+
+* Because the minimum value is 0, the data was shifted by 1. (log(0) = -Infinity)
+
+```{r, warning=FALSE}
+plot_ly(data = FB, y = ~log(likes_count + 1), color = ~Source, type = 'box') %>%
+  layout(yaxis = list(title = "Log of (Likes + 1)"))
+```
+
+The box plot below shows the log transformation of comments for each news outlet.
+
+* Because the minimum value is 0, the data was shifted by 1. (log(0) = -Infinity)
+
+```{r,warning=FALSE}
+plot_ly(data = FB, y = ~log(comments_count + 1), color = ~Source, type = 'box') %>%
+  layout(yaxis = list(title = "Log of (Comments + 1)"))
+```
+
+The box plot below shows the log transformation of comments for each news outlet.
+
+* Because the minimum value is 0, the data was shifted by 1. (log(0) = -Infinity)
+
+```{r,warning=FALSE}
+plot_ly(data = FB, y = ~log(shares_count + 1), color = ~Source, type = 'box') %>%
+  layout(yaxis = list(title = "Log of (Shares + 1)"))
+```
+
+
+## Text Mining
+
+Use the library *tm* for text mining
+
+```{r, message=FALSE,error=FALSE,warning=FALSE}
+library(tm)
+```
+
+The focus of this text mining was the aritcle name.
+
+```{r}
+### Set the name variable as a character type
+FB$name <- as.character(FB$name)
+
+### Remove all entries where the name is NULL
+FB2 <- FB[FB$name != "NULL",]
+```
+
+The following code will find the most common words and their frequencies across the whole dataset.
+
+```{r, warning=FALSE}
+
+### Combine all of the names into one string
+names_text <- paste(FB2$name, collapse = " ")
+
+### Create a source and corpus
+names_source <- VectorSource(names_text)
+names_corpus <- Corpus(names_source)
+
+### Clean up the character vector by shifting to lowercase, removing punctuation, stripping whitespace, and removing unimportant words
+names_corpus <- tm_map(names_corpus, content_transformer(tolower))
+names_corpus <- tm_map(names_corpus, removePunctuation)
+names_corpus <- tm_map(names_corpus, stripWhitespace)
+names_corpus <- tm_map(names_corpus, removeWords, stopwords("english"))
+
+### Make a document-term matrix
+names_dtm <- DocumentTermMatrix(names_corpus)
+names_dtm <- as.matrix(names_dtm)
+
+### Find the most frequent terms
+names_frequency <- colSums(names_dtm)
+names_frequency <- sort(names_frequency, decreasing = TRUE)
+
+### These are the top 10 most frequent words in the dataset
+head(names_frequency, n = 10)
+
+```
+
+Use the *wordcloud* package to plot the top 100 words. The top 20 words are colored red.
+
+```{r, message=FALSE,error=FALSE,warning=FALSE}
+library(wordcloud)
+
+### Grab the words
+words <- names(names_frequency)
+
+### Make a word cloud. This includes with top 100 words, with the top 20 in red.
+wordcloud(words[1:100], names_frequency[1:100], random.order = FALSE,
+          colors = c((rep("red", times = 20)), rep("black", times = 80)),
+          ordered.colors = TRUE, font = c(rep(3, times = 20), rep(2, times = 80)))
+text(x=0.5, y=0.92, "Top 100 Words Across Dataset", cex = 1.7)
+```
+
+The following code will find the most common words and their frequencies for each year and store them in a list.
+
+
+```{r, message=FALSE, warning=FALSE}
+
+### Create a list to hold the most common words and their frequiences for each year
+TopWordsPerYear <- list()
+
+### For each year
+for (i in 1:length(years)){
+  
+  ### See comments on code above
+  names_text <- paste(FB2[FB2$year == years[i], 4], collapse = " ")
+ 
+  names_source <- VectorSource(names_text)
+  names_corpus <- Corpus(names_source)
+  
+  names_corpus <- tm_map(names_corpus, content_transformer(tolower))
+  names_corpus <- tm_map(names_corpus, removePunctuation)
+  names_corpus <- tm_map(names_corpus, stripWhitespace)
+  names_corpus <- tm_map(names_corpus, removeWords, stopwords("english"))
+  
+  names_dtm <- DocumentTermMatrix(names_corpus)
+  names_dtm <- as.matrix(names_dtm)
+  
+  names_frequency <- colSums(names_dtm)
+  names_frequency <- sort(names_frequency, decreasing = TRUE)
+  
+  words <- names(names_frequency)
+  
+  ### Store the words and frequencies in a data frame and put that into the list
+  TopWordsPerYear[[i]] <- data.frame(words, names_frequency, stringsAsFactors = FALSE)
+  
+  ### Set the name of the data frame to the corresponding year
+  names(TopWordsPerYear)[i] <- paste("Year: ", years[i], sep = "")
+}
+
+
+
+```
+
+
+The following code will find the most common words and their frequencies for each news outlet and store them in a list.
+
+```{r, message=FALSE, warning=FALSE}
+
+### Create a list to hold the most common words and their frequiences for each news outlet
+TopWordsPerSource <- list()
+
+### For each news outlet
+for (i in 1:length(levels(FB2$Source))){
+  
+  ### See comments on code above
+  names_text <- paste(FB2[FB2$Source == levels(FB2$Source)[i], 4], collapse = " ")
+  
+  names_source <- VectorSource(names_text)
+  names_corpus <- Corpus(names_source)
+  
+  names_corpus <- tm_map(names_corpus, content_transformer(tolower))
+  names_corpus <- tm_map(names_corpus, removePunctuation)
+  names_corpus <- tm_map(names_corpus, stripWhitespace)
+  names_corpus <- tm_map(names_corpus, removeWords, stopwords("english"))
+  
+  names_dtm <- DocumentTermMatrix(names_corpus)
+  names_dtm <- as.matrix(names_dtm)
+  
+  names_frequency <- colSums(names_dtm)
+  names_frequency <- sort(names_frequency, decreasing = TRUE)
+  
+  words <- names(names_frequency)
+  
+  ### Store the words and frequencies in a data frame and put that into the list
+  TopWordsPerSource[[i]] <- data.frame(words,names_frequency, stringsAsFactors = FALSE)
+  
+  ### Set the name of the data frame to the corresponding news outlet
+  names(TopWordsPerSource)[i] <- paste(levels(FB2$Source)[i], sep = "")
+}
+
+
+```
+
+The following code will find the most common words and their frequencies for each news outlet by year and store them in a list.
+
+```{r, warning=FALSE, message=FALSE}
+### Create a list to hold the most common words and their frequiences for each news outlet per year
+TopWordsPerSourceByYear <- list()
+
+### Create an iterating variable
+p <- 1
+
+### For each new source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if there is data for the corresponding news outlet in the corresponding year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If there is, subset the data using the the corresponding news outlet in the corresponding year
+      tempData <- (subset(FB2, (Source == levels(FB2$Source)[i] & year == years[j])))
+      
+      ### See comments on code above
+      names_text <- paste(tempData[tempData$year == years[j], 4], collapse = " ")
+      
+      names_source <- VectorSource(names_text)
+      names_corpus <- Corpus(names_source)
+      
+      names_corpus <- tm_map(names_corpus, content_transformer(tolower))
+      names_corpus <- tm_map(names_corpus, removePunctuation)
+      names_corpus <- tm_map(names_corpus, stripWhitespace)
+      names_corpus <- tm_map(names_corpus, removeWords, stopwords("english"))
+      
+      names_dtm <- DocumentTermMatrix(names_corpus)
+      names_dtm <- as.matrix(names_dtm)
+      
+      names_frequency <- colSums(names_dtm)
+      names_frequency <- sort(names_frequency, decreasing = TRUE)
+      
+      words <- names(names_frequency)
+    
+      ### Store the words and frequencies in a data frame and put that into the list
+      TopWordsPerSourceByYear[[p]] <- data.frame(words,names_frequency,stringsAsFactors = FALSE)
+      
+      ### Set the name of the data frame to the corresponding news outlet and corresponding year
+      names(TopWordsPerSourceByYear)[p] <- paste(levels(FB2$Source)[i], years[j], sep = "_")
+      
+      ### Iterate
+      p <- p + 1
+    }
+    
+    ### If there is no data for a news outlet in a certain year
+    else{
+      
+      ### Put 0 in its place
+      TopWordsPerSourceByYear[[p]] <- 0
+      
+      ### Set the name to the corresponding news outlet and corresponding year
+      names(TopWordsPerSourceByYear)[p] <- paste(levels(FB2$Source)[i], years[j], sep = "_")
+      
+      ### Iterate
+      p <- p + 1
+    }
+  }
+}
+
+```
+
+## Word Clouds
+
+The following funtion will be used to make wordclouds of the top 100 words for each year. The top 20 words are colored red.
+
+```{r}
+### Establish function with a variable for year
+YearWordCloud <- function(Year){
+  
+  ### Make a wordcloud by taking the first 100 words and their corresponding frequencies.
+  ### The top 20 words are colored red.
+  par(mar = c(6,4,4,3)+1)
+  wordcloud(TopWordsPerYear[[paste("Year: ",Year, sep = "")]][1:100,1],
+            TopWordsPerYear[[paste("Year: ",Year, sep = "")]][1:100,2],random.order = FALSE,
+            colors = c((rep("red", times = 20)), rep("black", times = 80)),
+            ordered.colors = TRUE)
+  
+  ### Add title
+  text(x=0.5, y=0.88, paste("Top 100 Words in News Stories in",Year,sep = " "))
+}
+```
+
+
+The following funtion will be used to make wordclouds of the top 100 words for each news outlet. The top 20 words are colored red.
+
+```{r}
+### Establish function with a variable for news outlet
+SourceWordCloud <- function(NewsSource){
+  
+  ### Make a wordcloud by taking the first 100 words and their corresponding frequencies.
+  ### The top 20 words are colored red.
+  par(mar = c(6,4,4,3)+1)
+  wordcloud(TopWordsPerSource[[paste(NewsSource)]][1:100,1],
+            TopWordsPerSource[[paste(NewsSource)]][1:100,2],random.order = FALSE,
+            colors = c((rep("red", times = 20)), rep("black", times = 80)),
+            ordered.colors = TRUE)
+  
+  ### Add title
+  text(x=0.5, y=0.88, paste("Top 100 Words in News Stories by",NewsSource,sep = " "))
+}
+```
+
+The following funtion will be used to make wordclouds of the top 100 words for each news outlet by year. The top 20 words are colored red.
+
+
+```{r}
+### Establish function with a variable for news outlet and year
+SourceYearWordCloud <- function(NewsSource, Year){
+  
+  ### Make a wordcloud by taking the first 100 words and their corresponding frequencies.
+  ### The top 20 words are colored red.
+  par(mar = c(6,4,4,3)+1)
+  wordcloud(TopWordsPerSourceByYear[[paste(NewsSource,Year,sep = "_")]][1:100,1],
+            TopWordsPerSourceByYear[[paste(NewsSource,Year,sep = "_")]][1:100,2],random.order = FALSE,
+            colors = c((rep("red", times = 20)), rep("black", times = 80)),
+            ordered.colors = TRUE)
+  
+  ### Add title
+  text(x=0.5, y=0.88, paste("Top 100 Words in News Stories by",NewsSource,"in",Year,sep = " "))
+  
+}
+```
+
+### Wordclouds by Year
+
+The following code will acces the TopWordsPerYear list and make word clouds for each year.
+
+```{r, message=FALSE,warning=FALSE,error=FALSE}
+### For each year
+for (i in 1:length(years)){
+  
+  ### If it can, the function will make a word cloud. If it can't, it will skip to the next one.
+  try(YearWordCloud(years[i]))
+}
+```
+
+
+### Wordclouds by News Outlet
+
+The following code will acces the TopWordsPerSource list and make word clouds for each news outlet.
+
+```{r, message=FALSE,warning=FALSE,error=FALSE}
+### For each news outlet
+for (i in 1:length(levels(FB$Source))){
+  
+  ### If it can, the function will make a word cloud. If it can't, it will skip to the next one.
+  try(SourceWordCloud(levels(FB$Source)[i]))
+}
+```
+
+
+### Wordlouds by News Outlet for each Year
+
+The following code will acces the TopWordsPerSourceByYear list and make word clouds for each news outlet by year.
+
+```{r, message=FALSE,warning=FALSE,error=FALSE}
+### For each news outlet
+for (i in 1:length(levels(FB$Source))){
+  
+  for (j in 1:length(years)){
+    
+    ### If it can, the function will make a word cloud. If it can't, it will skip to the next one.
+    try(SourceYearWordCloud(levels(FB$Source)[i], years[j]))
+  }
+}
+```
+
+
+
+
+
+

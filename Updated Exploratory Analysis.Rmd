@@ -1,0 +1,388 @@
+---
+title: "Updated Analysis"
+author: "Ian Scarff"
+date: "September 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Prep Data
+
+Load in data. This new file includes a variable for month.
+
+```{r}
+FB <- read.csv("FacebookDataReduced.csv")
+
+### Be sure that NAME is a character variable
+FB$name <- as.character(FB$name)
+
+### Remove any null
+FB <- FB[FB$name != "null",]
+```
+
+# Summary Graphs
+
+Load *plotly* package.
+
+```{r, message=FALSE,warning=FALSE}
+library(plotly)
+```
+
+### Pie Charts
+```{r}
+plot_ly(data = FB, labels = ~Source, type = 'pie') %>%
+  layout(title = 'Data by News Source',
+         xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+         font = list(size = 24))
+```
+
+
+```{r}
+plot_ly(data = FB, labels = ~year, type = 'pie', textposition = 'inside',
+        textinfo = 'label+percent', text = ~paste('Year: ', year),
+        showlegend = F) %>%
+  layout(title = 'Data by Year',
+         xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+         font = list(size = 24))
+```
+
+
+### Bar Charts
+
+Create a vector of years for later use.
+
+```{r}
+years <- c(2012:2016)
+```
+
+The bar chart below shows the total number of stories for each new outlet, across each year.
+
+```{r}
+### Create a data frame to hold total story values
+TotStories <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotStories) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlet
+TotStories[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total stories and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab a random variable variables,
+      ### find out how many rows are in the subset, and add it to the data frame
+      TotStories[i,j+1] <- nrow(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                    select = c(shares_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total reactions to zero and add it to the data frame
+      TotStories[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot bar chart
+plot_ly(TotStories, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Stories'), barmode = 'group')
+
+```
+
+
+
+
+The bar chart below shows the total number of reactions (Likes + Love + Sad + Thankful + Angry) for each new outlet, across each year.
+
+```{r}
+
+### Create a data frame to hold total reaction values
+TotReact <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotReact) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlets
+TotReact[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total reactions and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab the reaction variables, sum them up,
+      ### and add it to the data frame
+      TotReact[i,j+1] <- sum(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                  select = 
+                          c(likes_count,love_count,wow_count,haha_count,sad_count,
+                                      thankful_count,
+                                      angry_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total reactions to zero and add it to the data frame
+      TotReact[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot the bar chart
+plot_ly(TotReact, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Reactions'), barmode = 'group')
+
+```
+
+
+The bar chart below shows the total number of comments for each new outlet, across each year.
+
+
+```{r}
+### Create a data frame to hold total comment values
+TotComm <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotComm) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlets
+TotComm[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total comments and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab the comment variable, sum it up,
+      ### and add it to the data frame
+      TotComm[i,j+1] <- sum(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                    select = c(comments_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total comments to zero and add it to the data frame
+      TotComm[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot the bar chart
+plot_ly(TotComm, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Comments'), barmode = 'group')
+```
+
+The bar chart below shows the total number of shares for each new outlet, across each year.
+
+```{r}
+### Create a data frame to hold total share values
+TotShare <- as.data.frame(matrix(data = NA, nrow = 15, ncol = 6))
+
+### Set column names to correspond to News and Years
+colnames(TotShare) <- c("News",paste("Y",years,sep=""))
+
+### Set the first column to the news outlets
+TotShare[,1] <- levels(FB$Source)
+
+### This for loop will calculate the total shares and insert them into the data frame
+### For each news source
+for (i in 1:length(levels(FB$Source))){
+  
+  ### For each year
+  for (j in 1:length(years)){
+    
+    ### Check to see if the news outlet has data in the selected year
+    if (any((subset(FB, (Source == levels(FB$Source)[i]), select = year)) == years[j])){
+      
+      ### If it does, take a subset with the selected year and news outlet, grab the shares variable, sum it up,
+      ### and add it to the data frame
+      TotShare[i,j+1] <- sum(subset(FB, (Source == levels(FB$Source)[i] & year == years[j]), 
+                                   select = c(shares_count)))
+    }
+    
+    ### If there is no data for a news outlet in the selected year
+    else{
+      
+      ### Set total comments to zero and add it to the data frame
+      TotShare[i,j+1] <- 0
+    }
+  }
+}
+
+
+### Plot the bar chart
+plot_ly(TotShare, x = ~News, y = ~Y2012, type = 'bar', name = '2012') %>%
+  add_trace(y = ~Y2013, name = '2013') %>%
+  add_trace(y = ~Y2014, name = '2014') %>%
+  add_trace(y = ~Y2015, name = '2015') %>%
+  add_trace(y = ~Y2016, name = '2016') %>%
+  layout(yaxis = list(title = '# of Shares'), barmode = 'group')
+```
+
+
+### Box Plots
+
+
+Since the data is highly right scewed, a log transformation was used.
+
+* **NOTE:** In statistics, whenever a log transformations is mentioned/used, it is **always** a *natural log* transformation, not log base 10.
+
+The box plot below shows the log transformation of likes for each news outlet.
+
+* Because the minimum value is 0, the data was shifted by 1. (log(0) = -Infinity)
+
+```{r, warning=FALSE}
+plot_ly(data = FB, y = ~log(likes_count + 1), color = ~Source, type = 'box') %>%
+  layout(yaxis = list(title = "Log of (Likes + 1)"))
+```
+
+The box plot below shows the log transformation of comments for each news outlet.
+
+* Because the minimum value is 0, the data was shifted by 1. (log(0) = -Infinity)
+
+```{r,warning=FALSE}
+plot_ly(data = FB, y = ~log(comments_count + 1), color = ~Source, type = 'box') %>%
+  layout(yaxis = list(title = "Log of (Comments + 1)"))
+```
+
+The box plot below shows the log transformation of comments for each news outlet.
+
+* Because the minimum value is 0, the data was shifted by 1. (log(0) = -Infinity)
+
+```{r,warning=FALSE}
+plot_ly(data = FB, y = ~log(shares_count + 1), color = ~Source, type = 'box') %>%
+  layout(yaxis = list(title = "Log of (Shares + 1)"))
+```
+
+
+# Text Mining
+
+Load package 
+```{r, message=FALSE,warning=FALSE}
+library(tm)
+```
+
+
+The following function will take in a data frame (all varaibles included), and conduct the text mining procedure. It will return a data frame with words and their frequencies.
+
+```{r}
+textFreq <- function(Data){
+  
+  names_text <- paste(Data[3], collapse = " ")
+  
+  ### Source and corpus
+  names_source <- VectorSource(names_text)
+  names_corpus <- Corpus(names_source)
+  
+  ### Clean
+  names_corpus <- tm_map(names_corpus, content_transformer(tolower))
+  names_corpus <- tm_map(names_corpus, removePunctuation)
+  names_corpus <- tm_map(names_corpus, stripWhitespace)
+  names_corpus <- tm_map(names_corpus, removeWords, stopwords("english"))
+  
+  ### making a document-term matrix
+  
+  names_dtm <- DocumentTermMatrix(names_corpus)
+  names_dtm <- as.matrix(names_dtm)
+  
+  
+  ### Finding the most frequent terms
+  names_frequency <- colSums(names_dtm)
+  names_frequency <- sort(names_frequency, decreasing = T)
+  
+  words <- names(names_frequency)
+
+  return(data.frame(words,names_frequency))
+}
+```
+
+
+# Analysis
+
+
+First, look at the most popular words in stories that have a number of likes greater than or equal to the median number of likes.
+
+```{r,message=FALSE,warning=FALSE,error=FALSE}
+greaterThanMedian1 <- textFreq(FB[FB$likes_count >= median(FB$likes_count),])
+```
+
+Second, look at the most popular words in stories that have a number of comments greater than or equal to the median number of comments.
+
+```{r,message=FALSE,warning=FALSE,error=FALSE}
+greaterThanMedian2 <- textFreq(FB[FB$comments_count >= median(FB$comments_count),])
+```
+
+### Word Clouds
+
+For some reason, the two most popular words are *timeline* and *photo*. These words aren't interesting. Excluding those, the following word clouds show the top 100 words across the whole dataset.
+
+* *NOTE*: The top 30 words are in red.
+```{r, message=FALSE,warning=FALSE}
+library(wordcloud)
+```
+
+
+
+```{r}
+wordcloud(greaterThanMedian1$words[3:102], 
+          greaterThanMedian1$names_frequency[3:102], random.order = F,
+          colors = c((rep("red", times = 30)), rep("black", times = 70)),
+          ordered.colors = T,)
+          
+text(x=0.5, y=0.98, "Top 100 Words where Story Likes are >= Median", cex = 1)
+```
+
+
+```{r}
+wordcloud(greaterThanMedian2$words[3:102], 
+          greaterThanMedian2$names_frequency[3:102], random.order = F,
+          colors = c((rep("red", times = 30)), rep("black", times = 70)),
+          ordered.colors = T)
+text(x=0.5, y=0.98, "Top 100 Words where Story Comments are >= Median", cex = 1)
+```
+
+
+
+# What To Do Next
+
+Examine stories by year, month, news outlet, and combinations of all. Expand the analysis to other reactions.
+
+
